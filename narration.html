@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ledger App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f4f7fa;
+      color: #333;
+    }
+    .form-box, .search-box {
+      background: #fff;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 15px;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .form-box input, .form-box select, .search-box input {
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    .form-box button {
+      padding: 8px 15px;
+      background: #007BFF;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.08);
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 10px;
+      text-align: center;
+    }
+    th {
+      background: #007BFF;
+      color: #fff;
+    }
+    td.credit { color: green; font-weight: bold; }
+    td.debit { color: red; font-weight: bold; }
+    td.datetime {
+      font-size: inherit;
+      line-height: 1.3;
+    }
+    td.datetime .date { font-weight: bold; display: block; }
+    td.datetime .time { font-style: italic; display: block; }
+    tfoot td { font-weight: bold; background: #f1f1f1; }
+    .save-btn {
+      margin: 15px auto;
+      padding: 10px;
+      text-align: center;
+      width: 200px;
+      border-radius: 8px;
+      font-weight: bold;
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .save-btn.enabled {
+      background: #28a745;
+      color: #fff;
+      cursor: pointer;
+    }
+    .actions button {
+      padding: 5px 10px;
+      margin: 2px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .edit-btn { background: #ffc107; color: #000; }
+    .delete-btn { background: #dc3545; color: #fff; }
+  </style>
+</head>
+<body>
+
+  <!-- Form -->
+  <div class="form-box">
+    <label>Type</label>
+    <select id="type">
+      <option value="" disabled selected>--Select--</option>
+      <option value="CR">CR - Credit</option>
+      <option value="DR">DR - Debit</option>
+    </select>
+    <label>Name</label>
+    <input type="text" id="name" placeholder="Enter name">
+    <label>Narration</label>
+    <input type="text" id="narration" placeholder="Optional">
+    <label>Amount</label>
+    <input type="number" id="amount" placeholder="0">
+    <button onclick="addEntry()">Add Entry</button>
+  </div>
+  <div class="search-box">
+    <label>Search:</label>
+    <input type="text" id="searchBox" placeholder="Type to filter..." onkeyup="filterTable()">
+  </div>
+  <div id="errorMsg" style="color:red; margin-bottom:10px;"></div>
+
+  <!-- Table -->
+  <table>
+    <thead>
+      <tr>
+        <th>Sr.No</th>
+        <th>Date</th>
+        <th>Type</th>
+        <th>Name / Narration</th>
+        <th>Credit</th>
+        <th>Debit</th>
+        <th>Balance</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+    <tfoot>
+      <tr>
+        <td colspan="4"><b>Total</b></td>
+        <td id="TotalCredit">0</td>
+        <td id="TotalDebit">0</td>
+        <td colspan="2"></td>
+      </tr>
+      <tr>
+        <td colspan="4"><b>Difference</b></td>
+        <td colspan="4" id="Difference">0</td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <div id="saveBtn" class="save-btn">SAVE</div>
+
+  <script>
+    function addEntry() {
+      const type = document.getElementById("type").value;
+      const name = document.getElementById("name").value.trim();
+      const narration = document.getElementById("narration").value.trim();
+      const amount = document.getElementById("amount").value;
+      const errorMsg = document.getElementById("errorMsg");
+
+      if (!type) return errorMsg.textContent = "Please select Credit or Debit!";
+      if (!/^[A-Za-z\s]+$/.test(name)) return errorMsg.textContent = "Name must contain only letters!";
+      if (amount === "" || isNaN(amount) || Number(amount) <= 0) return errorMsg.textContent = "Amount must be greater than 0!";
+      errorMsg.textContent = "";
+
+      const tbody = document.getElementById("tableBody");
+      const serialNo = tbody.rows.length + 1;
+      const today = new Date();
+      const dateStr = today.toLocaleDateString("en-GB"); // dd/mm/yyyy
+
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${serialNo}</td>
+        <td class="datetime"><span class="date">${dateStr}</span></td>
+        <td>${type}</td>
+        <td>${name}${narration ? " ("+narration+")" : ""}</td>
+        <td class="${type==="CR"?"credit":""}">${type==="CR"?amount:""}</td>
+        <td class="${type==="DR"?"debit":""}">${type==="DR"?amount:""}</td>
+        <td class="balance"></td>
+        <td class="actions">
+          <button class="edit-btn" onclick="editRow(this)">Edit</button>
+          <button class="delete-btn" onclick="deleteRow(this)">Delete</button>
+        </td>
+      `;
+      tbody.appendChild(row);
+
+      updateTotals();
+      clearForm();
+    }
+
+    function clearForm(){
+      document.getElementById("type").value = "";
+      document.getElementById("name").value = "";
+      document.getElementById("narration").value = "";
+      document.getElementById("amount").value = "";
+    }
+
+    function updateTotals() {
+      let totalCredit = 0, totalDebit = 0, balance = 0;
+      const rows = document.querySelectorAll("#tableBody tr");
+
+      rows.forEach(row => {
+        const credit = row.cells[4].textContent.trim();
+        const debit = row.cells[5].textContent.trim();
+        if (credit) totalCredit += Number(credit);
+        if (debit) totalDebit += Number(debit);
+
+        if (credit) balance += Number(credit);
+        if (debit) balance -= Number(debit);
+
+        row.cells[6].textContent = balance;
+      });
+
+      document.getElementById("TotalCredit").innerHTML = `<span class="credit">${totalCredit}</span>`;
+      document.getElementById("TotalDebit").innerHTML = `<span class="debit">${totalDebit}</span>`;
+
+      const diffCell = document.getElementById("Difference");
+      const diff = totalCredit - totalDebit;
+      diffCell.textContent = diff;
+      diffCell.style.color = diff > 0 ? "green" : diff < 0 ? "red" : "black";
+
+      const saveBtn = document.getElementById("saveBtn");
+      if (totalCredit > 0 && totalCredit === totalDebit) {
+        saveBtn.classList.add("enabled");
+      } else {
+        saveBtn.classList.remove("enabled");
+      }
+    }
+
+    function filterTable() {
+      const searchValue = document.getElementById("searchBox").value.toLowerCase();
+      const rows = document.querySelectorAll("#tableBody tr");
+      rows.forEach(row => {
+        const rowText = row.textContent.toLowerCase();
+        row.style.display = rowText.includes(searchValue) ? "" : "none";
+      });
+    }
+
+    function deleteRow(btn) {
+      if (confirm("Are you sure you want to delete this entry?")) {
+        const row = btn.closest("tr");
+        row.remove();
+        resetSerialNumbers();
+        updateTotals();
+      }
+    }
+
+    function editRow(btn) {
+      const row = btn.closest("tr");
+      const type = row.cells[2].textContent;
+      const fullName = row.cells[3].textContent;
+      let name = fullName;
+      let narration = "";
+      if (fullName.includes("(")) {
+        name = fullName.split("(")[0].trim();
+        narration = fullName.match(/\((.*?)\)/)[1];
+      }
+      const credit = row.cells[4].textContent;
+      const debit = row.cells[5].textContent;
+
+      const newName = prompt("Edit Name:", name);
+      if (newName === null) return;
+      const newNarration = prompt("Edit Narration:", narration);
+      if (newNarration === null) return;
+      const newAmount = prompt("Edit Amount:", credit || debit);
+      if (newAmount === null || isNaN(newAmount) || Number(newAmount) <= 0) return;
+
+      row.cells[2].textContent = type;
+      row.cells[3].textContent = newName + (newNarration ? " ("+newNarration+")" : "");
+      row.cells[4].textContent = type==="CR" ? newAmount : "";
+      row.cells[4].className = type==="CR" ? "credit" : "";
+      row.cells[5].textContent = type==="DR" ? newAmount : "";
+      row.cells[5].className = type==="DR" ? "debit" : "";
+
+      updateTotals();
+    }
+
+    function resetSerialNumbers() {
+      const rows = document.querySelectorAll("#tableBody tr");
+      rows.forEach((row, index) => {
+        row.cells[0].textContent = index + 1;
+      });
+    }
+  </script>
+</body>
+</html>

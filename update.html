@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Accounting Ledger</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: "Inter", sans-serif;
+      margin: 20px;
+      background: #f4f7fa;
+      color: #333;
+    }
+
+    .form-box {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+    }
+
+    .form-box label {
+      font-weight: 600;
+      color: #444;
+    }
+
+    .form-box select,
+    .form-box input {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      outline: none;
+      transition: all 0.2s ease-in-out;
+    }
+
+    .form-box select:focus,
+    .form-box input:focus {
+      border-color: #007BFF;
+      box-shadow: 0 0 4px rgba(0,123,255,0.3);
+    }
+
+    .form-box button {
+      padding: 10px 20px;
+      background: linear-gradient(135deg, #007BFF, #00C6FF);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s ease-in-out;
+    }
+
+    .form-box button:hover {
+      background: linear-gradient(135deg, #0056b3, #00a6d6);
+      transform: translateY(-2px);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 15px;
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+    }
+
+    th {
+      background: #007BFF;
+      color: white;
+      padding: 12px;
+      text-transform: uppercase;
+    }
+
+    td {
+      padding: 12px;
+      text-align: center;
+    }
+    td.credit { color: green; font-weight: bold; }
+    td.debit { color: red; font-weight: bold; }
+    tfoot tr {
+      border-top: 3px double #2c3e50;
+      font-weight: bold;
+    }
+
+    tbody tr:nth-child(even) {
+      background: #f9fcff;
+    }
+
+    tbody tr:hover {
+      background: #e9f4ff;
+    }
+
+    tfoot td {
+      font-weight: bold;
+      background: #f1f1f1;
+    }
+
+    .save-btn {
+      display: block;
+      width: 220px;
+      margin: 25px auto;
+      padding: 12px;
+      background: #dcdcdc;
+      border: none;
+      border-radius: 10px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 16px;
+      cursor: not-allowed;
+      opacity: 0.6;
+      transition: all 0.3s ease-in-out;
+    }
+
+    .save-btn.enabled {
+      cursor: pointer;
+      opacity: 1;
+      background: linear-gradient(135deg, #28a745, #00d26a);
+      color: #fff;
+      transform: scale(1.02);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+
+    .save-btn.enabled:hover {
+      transform: scale(1.05);
+    }
+
+    .error {
+      color: red;
+      font-size: 14px;
+      margin-left: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Form -->
+  <div class="form-box">
+    <label>Type</label>
+    <select id="type" required>
+      <option value="" disabled selected>--Select--</option>   
+      <option value="CR">CR - Credit</option>
+      <option value="DR">DR - Debit</option>
+    </select>
+
+    <label>Name</label>
+    <input type="text" id="name" placeholder="Enter name">
+
+    <label>Amount</label>
+    <input type="number" id="amount" placeholder="0">
+
+    <button onclick="addEntry()">Add</button>
+  </div>
+  <div class="error" id="errorMsg"></div>
+
+  <!-- Table -->
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Credit</th>
+        <th>Debit</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody">
+      <!-- Rows will be added dynamically -->
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="2"><b>Total</b></td>
+        <td id="TotalCredit">0</td>
+        <td id="TotalDebit">0</td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <!-- Save button -->
+  <div id="saveBtn" class="save-btn">SAVE</div>
+
+  <script>
+    function addEntry() {
+
+      const type = document.getElementById("type").value;
+      const name = document.getElementById("name").value.trim();
+      const amount = document.getElementById("amount").value;
+      const errorMsg = document.getElementById("errorMsg");
+
+      // Validation
+      if (!type) {
+        errorMsg.textContent = "Please select Credit or Debit!";
+        return;
+      }
+      if (!/^[A-Za-z\s]+$/.test(name)) {
+        errorMsg.textContent = "Name must contain only letters and cannot be empty.";
+        return;
+      }
+      if (amount === "" || isNaN(amount) || Number(amount) <= 0) {
+        errorMsg.textContent = "Amount must be a number greater than 0.";
+        return;
+      }
+
+      errorMsg.textContent = ""; // Clear error
+
+      // Add row
+      const row = document.createElement("tr");
+      const tbody = document.getElementById("tableBody");
+      row.innerHTML = `
+        <td>${type}</td>
+        <td>${name}</td>
+        <td class="${type === "CR" ? "credit" : ""}">${type === "CR" ? amount : ""}</td>
+        <td class="${type === "DR" ? "debit" : ""}">${type === "DR" ? amount : ""}</td>
+      `;
+      tbody.appendChild(row);
+
+      // Update totals
+      updateTotals();
+
+      // Clear form
+      document.getElementById("type").value = "";
+      document.getElementById("name").value = "";
+      document.getElementById("amount").value = "";
+    }
+
+    function updateTotals() {
+      let totalCredit = 0;
+      let totalDebit = 0;
+
+      const rows = document.querySelectorAll("#tableBody tr");
+      rows.forEach(row => {
+        const credit = row.cells[2].textContent.trim();
+        const debit = row.cells[3].textContent.trim();
+        if (credit) totalCredit += Number(credit);
+        if (debit) totalDebit += Number(debit);
+      });
+
+      const creditCell = document.getElementById("TotalCredit");
+      const debitCell = document.getElementById("TotalDebit");
+
+      // Set totals
+      creditCell.textContent = totalCredit;
+      debitCell.textContent = totalDebit;
+
+      // Reset colors first
+      creditCell.style.color = "";
+      debitCell.style.color = "";
+
+      // Apply color logic
+      if (totalCredit > totalDebit) {
+        creditCell.style.color = "green";
+      } 
+      else if (totalDebit > totalCredit) {
+        debitCell.style.color = "red";
+      }
+
+      // Enable/Disable Save button
+      const saveBtn = document.getElementById("saveBtn");
+      if (totalCredit > 0 && totalCredit === totalDebit) {
+        saveBtn.classList.add("enabled");
+      } 
+      else {
+        saveBtn.classList.remove("enabled");
+      }
+    }
+  </script>
+
+</body>
+</html>
